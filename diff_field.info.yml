@@ -1,0 +1,10 @@
+type: module
+name: Diff Field
+description: 'Hold the difference of revision ids of node in Drupal 8.'
+package: Custom
+dependencies:
+  - rules
+
+# Information added by Drupal.org packaging script on 2016-06-21
+version: '8.x-1.0'
+core: '8.x'
