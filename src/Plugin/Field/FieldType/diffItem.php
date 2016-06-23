@@ -32,11 +32,11 @@ class diffItem extends FieldItemBase {
       'columns' => array(
         'before_rid' => array(
           'type' => 'int',
-          'size' => 'tiny',
+          'length' => '30',
         ),
         'after_rid' => array(
           'type' => 'int',
-          'size' => 'tiny',
+          'length' => '30',
         ),
       ),
     );

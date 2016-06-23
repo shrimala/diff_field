@@ -11,7 +11,7 @@ use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\Form\FormStateInterface;
  
 /**
- * Plugin implementation of the 'dice' widget.
+ * Plugin implementation of the 'diff' widget.
  *
  * @FieldWidget (
  *   id = "widget_difffield",
@@ -26,17 +26,22 @@ class diffWidget extends WidgetBase {
    * {@inheritdoc}
    */
   //public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, $form_state) {
-  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {	  
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {	
+	$node = \Drupal::routeMatch()->getParameter('node');
+	if($node) {
+      $before_rids=$node->getRevisionId();
+    }
+
     $element['before_rid'] = array(
       '#type' => 'number',
       '#title' => t('Before RID'),
-      '#default_value' => '123',
-      '#size' => 10,
+      '#default_value' => $before_rids,
+      'size' => 10,
     );
     $element['after_rid'] = array(
       '#type' => 'number',
       '#title' => t('After RID'),
-      '#default_value' => '321',
+      '#default_value' => $before_rids,
       '#size' => 10,
     );
  
