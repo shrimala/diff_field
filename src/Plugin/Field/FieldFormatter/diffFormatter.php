@@ -38,7 +38,7 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
  /**
   * The entity comparison service for diff.
   */
- protected $entity_comparison;
+ protected $entityComparison;
  /**
   * The current user.
   *
@@ -70,7 +70,7 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
   public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,AccountInterface $current_user,$entity_comparison) {
     parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
 	$this->currentUser = $current_user;
-    $this->entitycomparison = $entity_comparison;
+    $this->entityComparison = $entity_comparison;
   }
  /**
   * {@inheritdoc}
