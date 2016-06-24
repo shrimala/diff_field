@@ -11,22 +11,13 @@ use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
-
 use Drupal\Core\Url;
-use Drupal\diff\EntityComparison;
 use Drupal\Component\Utility\Xss;
 use Drupal\Component\Utility\SafeMarkup;
-
-
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
-use Drupal\entity\Revision\EntityRevisionLogInterface;
-use Symfony\Component\HttpFoundation\Request;
-
 use Drupal\diff\DiffEntityComparison;
-
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Utility\LinkGeneratorInterface;
@@ -43,50 +34,46 @@ use Drupal\Core\Utility\LinkGeneratorInterface;
  * )
  */
 class diffFormatter extends FormatterBase {
- 
-   /**
-   * The entity comparison service for diff.
-   */
-  protected $entity_comparison;
-  
-  /**
-   * The current user.
-   *
-   * @var \Drupal\Core\Session\AccountInterface
-   */
-  protected $currentUser;
-  
-  /**
-   * Constructs a diffFormatter object.
-   *
-   * @param string $plugin_id
-   * The plugin_id for the formatter.
-   * @param mixed $plugin_definition
-   * The plugin implementation definition.
-   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
-   * The definition of the field to which the formatter is associated.
-   * @param array $settings
-   * The formatter settings.
-   * @param string $label
-   * The formatter label display setting.
-   * @param string $view_mode
-   * The view mode.
-   * @param array $third_party_settings
-   * Any third party settings settings.
-   * @param \Drupal\Core\Session\AccountInterface $current_user.
-   * The current user.
-   * @param DiffEntityComparison $entity_comparison
-   * The diff entity comparison service.
-   */
+ /**
+  * The entity comparison service for diff.
+  */
+ protected $entity_comparison;
+ /**
+  * The current user.
+  *
+  * @var \Drupal\Core\Session\AccountInterface
+  */
+ protected $currentUser;
+ /**
+  * Constructs a diffFormatter object.
+  *
+  * @param string $plugin_id
+  * The plugin_id for the formatter.
+  * @param mixed $plugin_definition
+  * The plugin implementation definition.
+  * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+  * The definition of the field to which the formatter is associated.
+  * @param array $settings
+  * The formatter settings.
+  * @param string $label
+  * The formatter label display setting.
+  * @param string $view_mode
+  * The view mode.
+  * @param array $third_party_settings
+  * Any third party settings settings.
+  * @param \Drupal\Core\Session\AccountInterface $current_user.
+  * The current user.
+  * @param DiffEntityComparison $entity_comparison
+  * The diff entity comparison service.
+  */
   public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,AccountInterface $current_user,$entity_comparison) {
-	  parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
-	  $this->currentUser = $current_user;
+    parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
+	$this->currentUser = $current_user;
     $this->entitycomparison = $entity_comparison;
   }
-
-  /**
-   * {@inheritdoc}
-   */
+ /**
+  * {@inheritdoc}
+  */
   public static function create(ContainerInterface $container,array $configuration, $plugin_id, $plugin_definition) {
     return new static(
       $plugin_id,
@@ -101,12 +88,12 @@ class diffFormatter extends FormatterBase {
     );
   }
   
-  /**
-   * {@inheritdoc}
-   */
+ /**
+  * {@inheritdoc}
+  */
   public function viewElements(FieldItemListInterface $items, $langcode = NULL) {
     $elements = array();
-//=======================This part have to change============================================ 
+    //=======================This part have to change============================================ 
     foreach ($items as $delta => $item) {
       if ($item->before_rid == 1) {
         // If we are using a 1-sided die (occasionally sees use), just write "1"
@@ -126,13 +113,10 @@ class diffFormatter extends FormatterBase {
         '#markup' => $markup,
       );
     }
- //=============================================================================
-   
- 
+    //=============================================================================
     return $elements;
   }
-  
-  
+
   private function compareNodeRevisions(NodeInterface $node, $left_vid, $right_vid, $filter) {
     $diff_rows = array();
     $build = array(
@@ -155,8 +139,8 @@ class diffFormatter extends FormatterBase {
 
     // Perform comparison only if both node revisions loaded successfully.
     if ($left_revision != FALSE && $right_revision != FALSE) {
-     //$fields = $this->entityComparison->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
-     $fields = $this->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
+      //$fields = $this->entityComparison->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
+      $fields = $this->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
       $node_base_fields = \Drupal::entityManager()->getBaseFieldDefinitions('node');
       // Check to see if we need to display certain fields or not based on
       // selected view mode display settings.
