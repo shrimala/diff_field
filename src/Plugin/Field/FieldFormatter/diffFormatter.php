@@ -33,8 +33,6 @@ use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Utility\LinkGeneratorInterface;
 
-
-
 /**
  * Plugin implementation of the 'diff' formatter.
  *
@@ -70,11 +68,14 @@ class diffFormatter extends FormatterBase {
    * The view mode.
    * @param array $third_party_settings
    * Any third party settings settings.
+   * @param \Drupal\Core\Session\AccountInterface $current_user
+   * The current user.
    * @param DiffEntityComparison $entityComparison
    * The diff entity comparison service.
    */
-  public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,$entityComparison) {
+  public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,AccountInterface $current_user,$entityComparison) {
 	  parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
+	  $this->currentUser = $current_user;
     $this->entitycomparison = $entityComparison;
   }
 
@@ -90,6 +91,7 @@ class diffFormatter extends FormatterBase {
       $configuration['label'],
       $configuration['view_mode'],
       $configuration['third_party_settings'],
+      $container->get('current_user'),
       $container->get('diff.entity_comparison')
     );
   }
@@ -111,8 +113,9 @@ class diffFormatter extends FormatterBase {
       }
       $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
       //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
-      $markup = $this->entitycomparison->compareRevisions($item->before_rid, $item->after_rid);
+      //$markup = $this->entitycomparison->compareRevisions($item->before_rid, $item->after_rid);
       //$markup = $this->entityComparison->test('arit');
+      $markup = $this->currentUser->id();
       $elements[$delta] = array(
         '#type' => 'markup',
         '#markup' => $markup,
