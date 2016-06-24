@@ -47,7 +47,7 @@ class diffFormatter extends FormatterBase {
    /**
    * The entity comparison service for diff.
    */
-  protected $entityComparison;
+  protected $entity_comparison;
   
   /**
    * The current user.
@@ -75,13 +75,13 @@ class diffFormatter extends FormatterBase {
    * Any third party settings settings.
    * @param \Drupal\Core\Session\AccountInterface $current_user.
    * The current user.
-   * @param DiffEntityComparison $entityComparison
+   * @param DiffEntityComparison $entity_comparison
    * The diff entity comparison service.
    */
-  public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,AccountInterface $current_user,$entityComparison) {
+  public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,AccountInterface $current_user,$entity_comparison) {
 	  parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
 	  $this->currentUser = $current_user;
-    $this->entitycomparison = $entityComparison;
+    $this->entitycomparison = $entity_comparison;
   }
 
   /**
