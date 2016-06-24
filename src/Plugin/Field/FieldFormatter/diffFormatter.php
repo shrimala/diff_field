@@ -64,13 +64,13 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
   * Any third party settings settings.
   * @param \Drupal\Core\Session\AccountInterface $current_user.
   * The current user.
-  * @param DiffEntityComparison $entity_comparison
+  * @param \Drupal\diff\DiffEntityComparison $entity_comparison
   * The diff entity comparison service.
   */
   public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,AccountInterface $current_user,$entity_comparison) {
     parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
 	$this->currentUser = $current_user;
-    $this->entityComparison = $entity_comparison;
+	$this->entityComparison = $entity_comparison;
   }
  /**
   * {@inheritdoc}
@@ -106,8 +106,8 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
       }
       $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
       //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
-      //$markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
-      $markup = $this->entityComparison->test();
+      $markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
+      //$markup = $this->entityComparison->test();
       //$markup = $this->currentUser->id();
       $elements[$delta] = array(
         '#type' => 'markup',
@@ -140,8 +140,8 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
 
     // Perform comparison only if both node revisions loaded successfully.
     if ($left_revision != FALSE && $right_revision != FALSE) {
+      $fields = $this->entityComparison->compareRevisions($right_revision, $right_revision); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
       //$fields = $this->entityComparison->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
-      $fields = $this->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
       $node_base_fields = \Drupal::entityManager()->getBaseFieldDefinitions('node');
       // Check to see if we need to display certain fields or not based on
       // selected view mode display settings.
