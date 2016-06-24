@@ -14,7 +14,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 
 use Drupal\Core\Url;
-use Drupal\diff\EntityComparisonBase;
+use Drupal\diff\EntityComparison;
 use Drupal\Component\Utility\Xss;
 use Drupal\Component\Utility\SafeMarkup;
 
@@ -61,7 +61,7 @@ class diffFormatter extends FormatterBase {
    */
   public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,$entityComparison) {
 	  parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
-    $this->entityComparison = $entityComparison;
+    $this->entitycomparison = $entityComparison;
   }
 
   /**
@@ -97,8 +97,8 @@ class diffFormatter extends FormatterBase {
       }
       $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
       //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
-  $markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
-  //$markup = $this->entityComparison->test('arit');
+      $markup = $this->entitycomparison->compareRevisions($item->before_rid, $item->after_rid);
+      //$markup = $this->entityComparison->test('arit');
       $elements[$delta] = array(
         '#type' => 'markup',
         '#markup' => $markup,
