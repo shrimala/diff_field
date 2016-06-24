@@ -106,9 +106,9 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
       }
       $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
       //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
-      $markup = $this->entitycomparison->compareRevisions($item->before_rid, $item->after_rid);
-      //$markup = $this->entityComparison->test();
-      $markup = $this->currentUser->id();
+      //$markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
+      $markup = $this->entityComparison->test();
+      //$markup = $this->currentUser->id();
       $elements[$delta] = array(
         '#type' => 'markup',
         '#markup' => $markup,
