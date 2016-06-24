@@ -12,7 +12,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\diff\DiffEntityComparison;
 use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 
 use Drupal\Core\Url;
 use Drupal\diff\EntityComparisonBase;
@@ -26,6 +26,16 @@ use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\entity\Revision\EntityRevisionLogInterface;
 use Symfony\Component\HttpFoundation\Request;
 
+
+
+
+
+use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Utility\LinkGeneratorInterface;
+
+
+
 /**
  * Plugin implementation of the 'diff' formatter.
  *
@@ -37,7 +47,7 @@ use Symfony\Component\HttpFoundation\Request;
  *   }
  * )
  */
-class diffFormatter extends FormatterBase  {
+class diffFormatter extends FormatterBase {
  
    /**
    * The entity comparison service for diff.
@@ -50,7 +60,8 @@ class diffFormatter extends FormatterBase  {
    * @param DiffEntityComparison $entityComparison
    *   The diff entity comparison service.
    */
-  public function __construct($entityComparison) {
+  public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,$entityComparison) {
+	  parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
     $this->entityComparison = $entityComparison;
   }
 
@@ -79,7 +90,7 @@ class diffFormatter extends FormatterBase  {
         $markup = $item->before_rid . 'd' . $item->after_rid;
       }
       $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
-      //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
+      $markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
   
       $elements[$delta] = array(
         '#type' => 'markup',
