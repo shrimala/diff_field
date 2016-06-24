@@ -21,6 +21,7 @@ use Drupal\diff\DiffEntityComparison;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Utility\LinkGeneratorInterface;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 
 /**
  * Plugin implementation of the 'diff' formatter.
@@ -33,7 +34,7 @@ use Drupal\Core\Utility\LinkGeneratorInterface;
  *   }
  * )
  */
-class diffFormatter extends FormatterBase {
+class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInterface {
  /**
   * The entity comparison service for diff.
   */
@@ -105,8 +106,8 @@ class diffFormatter extends FormatterBase {
       }
       $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
       //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
-      //$markup = $this->entitycomparison->compareRevisions($item->before_rid, $item->after_rid);
-      //$markup = $this->entityComparison->test('arit');
+      $markup = $this->entitycomparison->compareRevisions($item->before_rid, $item->after_rid);
+      //$markup = $this->entityComparison->test();
       $markup = $this->currentUser->id();
       $elements[$delta] = array(
         '#type' => 'markup',
