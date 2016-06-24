@@ -69,7 +69,6 @@ class diffFormatter extends FormatterBase {
    */
   public static function create(ContainerInterface $container,array $configuration, $plugin_id, $plugin_definition) {
     return new static(
-      $container->get('diff.entity_comparison'),
       $plugin_id,
       $plugin_definition,
       $configuration['field_definition'],
@@ -77,9 +76,7 @@ class diffFormatter extends FormatterBase {
       $configuration['label'],
       $configuration['view_mode'],
       $configuration['third_party_settings'],
-      $container->get('current_user'),
-      $container->get('link_generator'),
-      $container->get('entity.manager')->getStorage('image_style')
+      $container->get('diff.entity_comparison')
     );
   }
   
@@ -101,6 +98,7 @@ class diffFormatter extends FormatterBase {
       $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
       //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
   $markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
+  //$markup = $this->entityComparison->test('arit');
       $elements[$delta] = array(
         '#type' => 'markup',
         '#markup' => $markup,
