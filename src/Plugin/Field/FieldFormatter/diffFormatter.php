@@ -25,8 +25,6 @@ use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\entity\Revision\EntityRevisionLogInterface;
 use Symfony\Component\HttpFoundation\Request;
 
-//use Drupal\diff_field\EntityComparisonBase;
-
 use Drupal\diff\DiffEntityComparison;
 
 use Drupal\Core\Field\FieldDefinitionInterface;
@@ -52,6 +50,13 @@ class diffFormatter extends FormatterBase {
   protected $entityComparison;
   
   /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountInterface
+   */
+  protected $currentUser;
+  
+  /**
    * Constructs a diffFormatter object.
    *
    * @param string $plugin_id
@@ -68,7 +73,7 @@ class diffFormatter extends FormatterBase {
    * The view mode.
    * @param array $third_party_settings
    * Any third party settings settings.
-   * @param \Drupal\Core\Session\AccountInterface $current_user
+   * @param \Drupal\Core\Session\AccountInterface $current_user.
    * The current user.
    * @param DiffEntityComparison $entityComparison
    * The diff entity comparison service.
