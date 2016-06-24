@@ -11,6 +11,20 @@ use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\diff\DiffEntityComparison;
 use Drupal\node\NodeInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+
+
+use Drupal\Core\Url;
+use Drupal\diff\EntityComparisonBase;
+use Drupal\Component\Utility\Xss;
+use Drupal\Component\Utility\SafeMarkup;
+
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\entity\Revision\EntityRevisionLogInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Plugin implementation of the 'diff' formatter.
@@ -23,7 +37,7 @@ use Drupal\node\NodeInterface;
  *   }
  * )
  */
-class diffFormatter extends FormatterBase {
+class diffFormatter extends FormatterBase  {
  
    /**
    * The entity comparison service for diff.
@@ -43,7 +57,7 @@ class diffFormatter extends FormatterBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container,array $configuration, $plugin_id, $plugin_definition) {
     return new static(
       $container->get('diff.entity_comparison')
     );
@@ -64,8 +78,8 @@ class diffFormatter extends FormatterBase {
       else {
         $markup = $item->before_rid . 'd' . $item->after_rid;
       }
-      
-      $markup = compareNodeRevisions(ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw')    
+      $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
+      //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
   
       $elements[$delta] = array(
         '#type' => 'markup',
@@ -91,18 +105,18 @@ class diffFormatter extends FormatterBase {
       $filter = 'raw_plain';
     }
     // Node storage service.
-    $storage = $this->entityManager()->getStorage('node');
+    $storage = \Drupal::entityManager()->getStorage('node');
     $left_revision = $storage->loadRevision($left_vid);
     $right_revision = $storage->loadRevision($right_vid);
     $vids = $storage->revisionIds($node);
-    $diff_rows[] = $this->buildRevisionsNavigation($node->id(), $vids, $left_vid, $right_vid);
-    $diff_rows[] = $this->buildMarkdownNavigation($node->id(), $left_vid, $right_vid, $filter);
-    $diff_header = $this->buildTableHeader($left_revision, $right_revision);
+    $diff_rows[] = $this->buildRevisionsNavigation($node->id(), $vids, $left_vid, $right_vid);  //checking
+    $diff_rows[] = $this->buildMarkdownNavigation($node->id(), $left_vid, $right_vid, $filter);  //checking
+    $diff_header = $this->buildTableHeader($left_revision, $right_revision);  //checking
 
     // Perform comparison only if both node revisions loaded successfully.
     if ($left_revision != FALSE && $right_revision != FALSE) {
-      $fields = $this->entityComparison->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE
-      $node_base_fields = $this->entityManager()->getBaseFieldDefinitions('node');
+     $fields = $this->entityComparison->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
+      $node_base_fields = \Drupal::entityManager()->getBaseFieldDefinitions('node');
       // Check to see if we need to display certain fields or not based on
       // selected view mode display settings.
       foreach ($fields as $field_name => $field) {
@@ -145,7 +159,7 @@ class diffFormatter extends FormatterBase {
 
       // Add the CSS for the diff.
       $build['#attached']['library'][] = 'diff/diff.general';
-      $theme = $this->config->get('general_settings.theme');
+      $theme = \Drupal::config()->get('general_settings.theme');
       if ($theme) {
         if ($theme == 'default') {
           $build['#attached']['library'][] = 'diff/diff.default';
@@ -209,4 +223,171 @@ class diffFormatter extends FormatterBase {
     return array();
   }
   */
+   /**
+   * Returns the navigation row for diff table.
+   */
+  protected function buildRevisionsNavigation($nid, $vids, $left_vid, $right_vid) {
+    $revisions_count = count($vids);
+    $i = 0;
+
+    $row = array();
+    // Find the previous revision.
+    while ($left_vid > $vids[$i]) {
+      $i += 1;
+    }
+    if ($i != 0) {
+      // Second column.
+      $row[] = array(
+        'data' => \Drupal::l(
+          $this->t('< Previous difference'),
+          Url::fromRoute('diff.revisions_diff',
+          array(
+            'node' => $nid,
+            'left_vid' => $vids[$i - 1],
+            'right_vid' => $left_vid,
+          ))
+        ),
+        'colspan' => 2,
+        'class' => 'rev-navigation',
+      );
+    }
+    else {
+      // Second column.
+      $row[] = $this->nonBreakingSpace;
+    }
+    // Third column.
+    $row[] = $this->nonBreakingSpace;
+    // Find the next revision.
+    $i = 0;
+    while ($i < $revisions_count && $right_vid >= $vids[$i]) {
+      $i += 1;
+    }
+    if ($revisions_count != $i && $vids[$i - 1] != $vids[$revisions_count - 1]) {
+      // Forth column.
+      $row[] = array(
+        'data' => $this->l(
+          $this->t('Next difference >'),
+          Url::fromRoute('diff.revisions_diff',
+          array(
+            'node' => $nid,
+            'left_vid' => $right_vid,
+            'right_vid' => $vids[$i],
+          ))
+        ),
+        'colspan' => 2,
+        'class' => 'rev-navigation',
+      );
+    }
+    else {
+      // Forth column.
+      $row[] = $this->nonBreakingSpace;
+    }
+
+    // If there are only 2 revision return an empty row.
+    if ($revisions_count == 2) {
+      return array();
+    }
+    else {
+      return $row;
+    }
+  }
+
+  /**
+   * Builds a table row with navigation between raw and raw-plain formats.
+   */
+  protected function buildMarkdownNavigation($nid, $left_vid, $right_vid, $active_filter) {
+
+    $links['raw'] = array(
+      'title' => $this->t('Standard'),
+      'url' => Url::fromRoute('diff.revisions_diff', array(
+        'node' => $nid,
+        'left_vid' => $left_vid,
+        'right_vid' => $right_vid,
+      )),
+    );
+    $links['raw_plain'] = array(
+      'title' => $this->t('Markdown'),
+      'url' => Url::fromRoute('diff.revisions_diff', array(
+        'node' => $nid,
+        'left_vid' => $left_vid,
+        'right_vid' => $right_vid,
+        'filter' => 'raw-plain',
+      )),
+    );
+
+    // Set as the first element the current filter.
+    $filter = $links[$active_filter];
+    unset($links[$active_filter]);
+    array_unshift($links, $filter);
+
+    $row[] = array(
+      'data' => array(
+        '#type' => 'operations',
+        '#links' => $links,
+      ),
+      'colspan' => 4,
+    );
+
+    return $row;
+  }
+
+  /**
+   * Build the header for the diff table.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $left_revision
+   *   Revision from the left hand side.
+   * @param \Drupal\Core\Entity\EntityInterface $right_revision
+   *   Revision from the right hand side.
+   *
+   * @return array
+   *   Header for Diff table.
+   */
+  protected function buildTableHeader(EntityInterface $left_revision, EntityInterface $right_revision) {
+    $entity_type_id = $left_revision->getEntityTypeId();
+    $revisions = array($left_revision, $right_revision);
+    $header = array();
+
+    foreach ($revisions as $revision) {
+      if ($revision instanceof EntityRevisionLogInterface || $revision instanceof NodeInterface) {
+        $revision_log = $this->nonBreakingSpace;
+
+        if ($revision->revision_log->value != '') {
+          $revision_log = Xss::filter($revision->revision_log->value);
+        }
+        $username = array(
+          '#theme' => 'username',
+          '#account' => $revision->uid->entity,
+        );
+        $revision_date = format_date($revision->getRevisionCreationTime(), 'short');
+        $revision_link = $this->t($revision_log . '@date', array(
+            '@date' => \Drupal::l($revision_date, Url::fromRoute("entity.$entity_type_id.revision", array(
+              $entity_type_id => $revision->id(),
+              $entity_type_id . '_revision' => $revision->getRevisionId(),
+          ))),
+        ));
+      }
+      else {
+        $revision_link = $this->l($revision->label(), $revision->toUrl('revision'));
+      }
+
+      // @todo When theming think about where in the table to integrate this
+      //   link to the revision user. There is some issue about multi-line headers
+      //   for theme table.
+      // $header[] = array(
+      //   'data' => $this->t('by' . '!username', array('!username' => drupal_render($username))),
+      //   'colspan' => 1,
+      // );
+      $header[] = array(
+        'data' => array('#markup' => $this->nonBreakingSpace),
+        'colspan' => 1,
+      );
+      $header[] = array(
+        'data' => array('#markup' => $revision_link),
+        'colspan' => 1,
+      );
+    }
+
+    return $header;
+  }
+
 }
