@@ -27,7 +27,7 @@ use Symfony\Component\HttpFoundation\Request;
 
 //use Drupal\diff_field\EntityComparisonBase;
 
-
+use Drupal\diff\DiffEntityComparison;
 
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Session\AccountInterface;
