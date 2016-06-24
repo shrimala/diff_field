@@ -57,7 +57,23 @@ class diffFormatter extends FormatterBase {
    * Constructs a diffFormatter object.
    *
    * @param DiffEntityComparison $entityComparison
-   *   The diff entity comparison service.
+   * The diff entity comparison service.
+   * @param string $plugin_id
+   * The plugin_id for the formatter.
+   * @param mixed $plugin_definition
+   * The plugin implementation definition.
+   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+   * The definition of the field to which the formatter is associated.
+   * @param array $settings
+   * The formatter settings.
+   * @param string $label
+   * The formatter label display setting.
+   * @param string $view_mode
+   * The view mode.
+   * @param array $third_party_settings
+   * Any third party settings settings.
+   * @param DiffEntityComparison $entityComparison
+   * The diff entity comparison service.
    */
   public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings,$entityComparison) {
 	  parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
