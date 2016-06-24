@@ -99,8 +99,8 @@ class diffFormatter extends FormatterBase {
         $markup = $item->before_rid . 'd' . $item->after_rid;
       }
       $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
-      $markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
-  
+      //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
+  $markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
       $elements[$delta] = array(
         '#type' => 'markup',
         '#markup' => $markup,
@@ -286,7 +286,7 @@ class diffFormatter extends FormatterBase {
     if ($revisions_count != $i && $vids[$i - 1] != $vids[$revisions_count - 1]) {
       // Forth column.
       $row[] = array(
-        'data' => $this->l(
+        'data' => \Drupal::l(
           $this->t('Next difference >'),
           Url::fromRoute('diff.revisions_diff',
           array(
