@@ -56,8 +56,6 @@ class diffFormatter extends FormatterBase {
   /**
    * Constructs a diffFormatter object.
    *
-   * @param DiffEntityComparison $entityComparison
-   * The diff entity comparison service.
    * @param string $plugin_id
    * The plugin_id for the formatter.
    * @param mixed $plugin_definition
