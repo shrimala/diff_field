@@ -9,7 +9,6 @@ namespace Drupal\diff_field\Plugin\Field\FieldFormatter;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\diff\DiffEntityComparison;
 use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
@@ -26,7 +25,7 @@ use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\entity\Revision\EntityRevisionLogInterface;
 use Symfony\Component\HttpFoundation\Request;
 
-
+//use Drupal\diff_field\EntityComparisonBase;
 
 
 
@@ -70,7 +69,17 @@ class diffFormatter extends FormatterBase {
    */
   public static function create(ContainerInterface $container,array $configuration, $plugin_id, $plugin_definition) {
     return new static(
-      $container->get('diff.entity_comparison')
+      $container->get('diff.entity_comparison'),
+      $plugin_id,
+      $plugin_definition,
+      $configuration['field_definition'],
+      $configuration['settings'],
+      $configuration['label'],
+      $configuration['view_mode'],
+      $configuration['third_party_settings'],
+      $container->get('current_user'),
+      $container->get('link_generator'),
+      $container->get('entity.manager')->getStorage('image_style')
     );
   }
   
@@ -126,7 +135,8 @@ class diffFormatter extends FormatterBase {
 
     // Perform comparison only if both node revisions loaded successfully.
     if ($left_revision != FALSE && $right_revision != FALSE) {
-     $fields = $this->entityComparison->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
+     //$fields = $this->entityComparison->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
+     $fields = $this->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
       $node_base_fields = \Drupal::entityManager()->getBaseFieldDefinitions('node');
       // Check to see if we need to display certain fields or not based on
       // selected view mode display settings.
@@ -399,6 +409,90 @@ class diffFormatter extends FormatterBase {
     }
 
     return $header;
+  }
+/**
+   * This method should return an array of items ready to be compared.
+   *
+   * @param ContentEntityInterface $left_entity
+   *   The left entity
+   * @param ContentEntityInterface $right_entity
+   *   The right entity
+   *
+   * @return array
+   *   Items ready to be compared by the Diff component.
+   */
+  public function compareRevisions(ContentEntityInterface $left_entity, ContentEntityInterface $right_entity) {
+    $result = array();
+
+    $left_values = $this->entityParser->parseEntity($left_entity);
+    $right_values = $this->entityParser->parseEntity($right_entity);
+
+    foreach ($left_values as $field_name => $values) {
+      $field_definition = $left_entity->getFieldDefinition($field_name);
+      // Get the compare settings for this field type.
+      $compare_settings = $this->pluginsConfig->get('field_types.' . $field_definition->getType());
+      $result[$field_name] = array(
+        '#name' => ($compare_settings['settings']['show_header'] == 1) ? $field_definition->getLabel() : '',
+        '#settings' => $compare_settings,
+      );
+
+      // Fields which exist on the right entity also.
+      if (isset($right_values[$field_name])) {
+        $result[$field_name] += $this->combineFields($left_values[$field_name], $right_values[$field_name]);
+        // Unset the field from the right entity so that we know if the right
+        // entity has any fields that left entity doesn't have.
+        unset($right_values[$field_name]);
+      }
+      // This field exists only on the left entity.
+      else {
+        $result[$field_name] += $this->combineFields($left_values[$field_name], array());
+      }
+    }
+
+    // Fields which exist only on the right entity.
+    foreach ($right_values as $field_name => $values) {
+      $field_definition = $right_entity->getFieldDefinition($field_name);
+      $compare_settings = $this->pluginsConfig->get('field_types.' . $field_definition->getType());
+      $result[$field_name] = array(
+        '#name' => ($compare_settings['settings']['show_header'] == 1) ? $field_definition->getLabel() : '',
+        '#settings' => $compare_settings,
+      );
+      $result[$field_name] += $this->combineFields(array(), $right_values[$field_name]);
+    }
+
+    // Field rows. Recurse through all child elements.
+    foreach (Element::children($result) as $key) {
+      $result[$key]['#states'] = array();
+      // Ensure that the element follows the #states format.
+      if (isset($result[$key]['#left'])) {
+        // We need to trim spaces and new lines from the end of the string
+        // otherwise in some cases we have a blank not needed line.
+        $result[$key]['#states']['raw']['#left'] = trim($result[$key]['#left']);
+        unset($result[$key]['#left']);
+      }
+      if (isset($result[$key]['#right'])) {
+        $result[$key]['#states']['raw']['#right'] = trim($result[$key]['#right']);
+        unset($result[$key]['#right']);
+      }
+      $field_settings = $result[$key]['#settings'];
+
+      if (!empty($field_settings['settings']['markdown'])) {
+        $result[$key]['#states']['raw_plain']['#left'] = $this->applyMarkdown($field_settings['settings']['markdown'], $result[$key]['#states']['raw']['#left']);
+        $result[$key]['#states']['raw_plain']['#right'] = $this->applyMarkdown($field_settings['settings']['markdown'], $result[$key]['#states']['raw']['#right']);
+      }
+      // In case the settings are not loaded correctly use drupal_html_to_text
+      // to avoid any possible notices when a user clicks on markdown.
+      else {
+        $result[$key]['#states']['raw_plain']['#left'] = $this->applyMarkdown('drupal_html_to_text', $result[$key]['#states']['raw']['#left']);
+        $result[$key]['#states']['raw_plain']['#right'] = $this->applyMarkdown('drupal_html_to_text', $result[$key]['#states']['raw']['#right']);
+      }
+    }
+
+    // Process the array (split the strings into single line strings)
+    // and get line counts per field.
+    array_walk($result, array($this, 'processStateLine'));
+
+    return $result;
   }
 
 }
