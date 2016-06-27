@@ -22,7 +22,8 @@ use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Utility\LinkGeneratorInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
-
+use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\diff\Controller\NodeRevisionController;
 /**
  * Plugin implementation of the 'diff' formatter.
  *
@@ -104,10 +105,10 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
       else {
         $markup = $item->before_rid . 'd' . $item->after_rid;
       }
-      $ARIT_GET_THE_PARENT_NODE = \Drupal::routeMatch()->getParameter('node');
-      //$markup = $this->compareNodeRevisions($ARIT_GET_THE_PARENT_NODE, $item->before_rid, $item->after_rid, 'raw'); 
-      $markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
-      //$markup = $this->entityComparison->test();
+      $node = entity_revision_load('node',$item->before_rid);
+      $markup = $this->compareNodeRevisions($node, $item->before_rid, $item->after_rid, 'raw');
+      //$markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
+      //$markup = $this->entityComparison->test(50);
       //$markup = $this->currentUser->id();
       $elements[$delta] = array(
         '#type' => 'markup',
@@ -117,8 +118,7 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
     //=============================================================================
     return $elements;
   }
-
-  private function compareNodeRevisions(NodeInterface $node, $left_vid, $right_vid, $filter) {
+public function compareNodeRevisions(NodeInterface $node, $left_vid, $right_vid, $filter) {
     $diff_rows = array();
     $build = array(
       '#title' => $this->t('Revisions for %title', array('%title' => $node->label())),
@@ -134,21 +134,20 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
     $left_revision = $storage->loadRevision($left_vid);
     $right_revision = $storage->loadRevision($right_vid);
     $vids = $storage->revisionIds($node);
-    $diff_rows[] = $this->buildRevisionsNavigation($node->id(), $vids, $left_vid, $right_vid);  //checking
-    $diff_rows[] = $this->buildMarkdownNavigation($node->id(), $left_vid, $right_vid, $filter);  //checking
-    $diff_header = $this->buildTableHeader($left_revision, $right_revision);  //checking
+    $diff_rows[] = $this->buildRevisionsNavigation($node->id(), $vids, $left_vid, $right_vid);
+    $diff_rows[] = $this->buildMarkdownNavigation($node->id(), $left_vid, $right_vid, $filter);
+    $diff_header = $this->buildTableHeader($left_revision, $right_revision);
 
     // Perform comparison only if both node revisions loaded successfully.
     if ($left_revision != FALSE && $right_revision != FALSE) {
-      $fields = $this->entityComparison->compareRevisions($right_revision, $right_revision); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
-      //$fields = $this->entityComparison->compareRevisions($left_entity, $right_entity); //MODIFIED FROM ORIGINAL TO USE SERVICE    //checking
+      $fields = $this->entityComparison->compareRevisions($left_revision, $right_revision);
       $node_base_fields = \Drupal::entityManager()->getBaseFieldDefinitions('node');
       // Check to see if we need to display certain fields or not based on
       // selected view mode display settings.
       foreach ($fields as $field_name => $field) {
         // If we are dealing with nodes only compare those fields
         // set as visible from the selected view mode.
-        $view_mode = $this->config->get('content_type_settings.' . $node->getType() . '.view_mode');
+        $view_mode = $this->entityComparison->config->get('content_type_settings.' . $node->getType() . '.view_mode');
         // If no view mode is selected use the default view mode.
         if ($view_mode == NULL) {
           $view_mode = 'default';
@@ -169,7 +168,7 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
             'class' => array('field-name'),
           );
         }
-        $field_diff_rows = $this->getRows(
+        $field_diff_rows = $this->entityComparison->getRows(
           $field['#states'][$filter]['#left'],
           $field['#states'][$filter]['#right']
         );
@@ -185,7 +184,7 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
 
       // Add the CSS for the diff.
       $build['#attached']['library'][] = 'diff/diff.general';
-      $theme = \Drupal::config()->get('general_settings.theme');
+      $theme = $this->entityComparison->config->get('general_settings.theme');
       if ($theme) {
         if ($theme == 'default') {
           $build['#attached']['library'][] = 'diff/diff.default';
@@ -209,6 +208,18 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
         ),
       );
 
+      $build['back'] = array(
+        '#type' => 'link',
+        '#attributes' => array(
+          'class' => array(
+            'button',
+            'diff-button',
+          ),
+        ),
+        '#title' => $this->t('Back to Revision Overview'),
+        '#url' => Url::fromRoute('entity.node.version_history', ['node' => $node->id()]),
+      );
+
       return $build;
     }
     else {
@@ -218,38 +229,59 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
     }
   }
 
-   
-   /**
-   * {@inheritdoc}
-   */
-   /**
-  public function settingsForm(array $form, FormStateInterface $form_state) {
-    $image_styles = 'CommentField';
-    $element['image_style'] = array(
-      '#title' => t('Comment Field'),
-      '#type' => 'select',
-      '#default_value' => $this->getSetting('image_style'),
-      '#empty_option' => t('None (original image)'),
-      '#options' => $image_styles,
-    );
-    return $element;
-  }
-  * /
   /**
-   * {@inheritdoc}
+   * Build the header for the diff table.
+   *
+   * @param $left_revision
+   *   Revision from the left hand side.
+   * @param $right_revision
+   *   Revision from the right hand side.
+   *
+   * @return array
+   *   Header for Diff table.
    */
-   /**
-  public function settingsSummary() {
-    // Only show a summary if we're using a non-standard pager id.
-    if ($this->getSetting('after_rid')) {
-      return array($this->t('After ID: @id', array(
-        '@id' => $this->getSetting('after_rid'),
-      )));
+  protected function buildTableHeader($left_revision, $right_revision) {
+    $revisions = array($left_revision, $right_revision);
+    $header = array();
+
+    foreach ($revisions as $revision) {
+      $revision_log = $this->entityComparison->nonBreakingSpace;
+
+      if ($revision->revision_log->value != '') {
+        $revision_log = Xss::filter($revision->revision_log->value);
+      }
+      $username = array(
+        '#theme' => 'username',
+        '#account' => $revision->uid->entity,
+      );
+      $revision_date = $this->entityComparison->date->format($revision->getRevisionCreationTime(), 'short');
+      $revision_link = $this->t($revision_log . '@date', array(
+        '@date' => \Drupal::l($revision_date, Url::fromRoute('entity.node.revision', array(
+          'node' => $revision->id(),
+          'node_revision' => $revision->getRevisionId(),
+        ))),
+      ));
+      // @todo When theming think about where in the table to integrate this
+      //   link to the revision user. There is some issue about multi-line headers
+      //   for theme table.
+      // $header[] = array(
+      //   'data' => $this->t('by' . '!username', array('!username' => drupal_render($username))),
+      //   'colspan' => 1,
+      // );
+      $header[] = array(
+        'data' => array('#markup' => $this->entityComparison->nonBreakingSpace),
+        'colspan' => 1,
+      );
+      $header[] = array(
+        'data' => array('#markup' => $revision_link),
+        'colspan' => 1,
+      );
     }
-    return array();
+
+    return $header;
   }
-  */
-   /**
+
+  /**
    * Returns the navigation row for diff table.
    */
   protected function buildRevisionsNavigation($nid, $vids, $left_vid, $right_vid) {
@@ -279,10 +311,10 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
     }
     else {
       // Second column.
-      $row[] = $this->nonBreakingSpace;
+      $row[] = $this->entityComparison->nonBreakingSpace;
     }
     // Third column.
-    $row[] = $this->nonBreakingSpace;
+    $row[] = $this->entityComparison->nonBreakingSpace;
     // Find the next revision.
     $i = 0;
     while ($i < $revisions_count && $right_vid >= $vids[$i]) {
@@ -306,7 +338,7 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
     }
     else {
       // Forth column.
-      $row[] = $this->nonBreakingSpace;
+      $row[] = $this->entityComparison->nonBreakingSpace;
     }
 
     // If there are only 2 revision return an empty row.
@@ -355,149 +387,6 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
     );
 
     return $row;
-  }
-
-  /**
-   * Build the header for the diff table.
-   *
-   * @param \Drupal\Core\Entity\EntityInterface $left_revision
-   *   Revision from the left hand side.
-   * @param \Drupal\Core\Entity\EntityInterface $right_revision
-   *   Revision from the right hand side.
-   *
-   * @return array
-   *   Header for Diff table.
-   */
-  protected function buildTableHeader(EntityInterface $left_revision, EntityInterface $right_revision) {
-    $entity_type_id = $left_revision->getEntityTypeId();
-    $revisions = array($left_revision, $right_revision);
-    $header = array();
-
-    foreach ($revisions as $revision) {
-      if ($revision instanceof EntityRevisionLogInterface || $revision instanceof NodeInterface) {
-        $revision_log = $this->nonBreakingSpace;
-
-        if ($revision->revision_log->value != '') {
-          $revision_log = Xss::filter($revision->revision_log->value);
-        }
-        $username = array(
-          '#theme' => 'username',
-          '#account' => $revision->uid->entity,
-        );
-        $revision_date = format_date($revision->getRevisionCreationTime(), 'short');
-        $revision_link = $this->t($revision_log . '@date', array(
-            '@date' => \Drupal::l($revision_date, Url::fromRoute("entity.$entity_type_id.revision", array(
-              $entity_type_id => $revision->id(),
-              $entity_type_id . '_revision' => $revision->getRevisionId(),
-          ))),
-        ));
-      }
-      else {
-        $revision_link = $this->l($revision->label(), $revision->toUrl('revision'));
-      }
-
-      // @todo When theming think about where in the table to integrate this
-      //   link to the revision user. There is some issue about multi-line headers
-      //   for theme table.
-      // $header[] = array(
-      //   'data' => $this->t('by' . '!username', array('!username' => drupal_render($username))),
-      //   'colspan' => 1,
-      // );
-      $header[] = array(
-        'data' => array('#markup' => $this->nonBreakingSpace),
-        'colspan' => 1,
-      );
-      $header[] = array(
-        'data' => array('#markup' => $revision_link),
-        'colspan' => 1,
-      );
-    }
-
-    return $header;
-  }
-/**
-   * This method should return an array of items ready to be compared.
-   *
-   * @param ContentEntityInterface $left_entity
-   *   The left entity
-   * @param ContentEntityInterface $right_entity
-   *   The right entity
-   *
-   * @return array
-   *   Items ready to be compared by the Diff component.
-   */
-  public function compareRevisions(ContentEntityInterface $left_entity, ContentEntityInterface $right_entity) {
-    $result = array();
-
-    $left_values = $this->entityParser->parseEntity($left_entity);
-    $right_values = $this->entityParser->parseEntity($right_entity);
-
-    foreach ($left_values as $field_name => $values) {
-      $field_definition = $left_entity->getFieldDefinition($field_name);
-      // Get the compare settings for this field type.
-      $compare_settings = $this->pluginsConfig->get('field_types.' . $field_definition->getType());
-      $result[$field_name] = array(
-        '#name' => ($compare_settings['settings']['show_header'] == 1) ? $field_definition->getLabel() : '',
-        '#settings' => $compare_settings,
-      );
-
-      // Fields which exist on the right entity also.
-      if (isset($right_values[$field_name])) {
-        $result[$field_name] += $this->combineFields($left_values[$field_name], $right_values[$field_name]);
-        // Unset the field from the right entity so that we know if the right
-        // entity has any fields that left entity doesn't have.
-        unset($right_values[$field_name]);
-      }
-      // This field exists only on the left entity.
-      else {
-        $result[$field_name] += $this->combineFields($left_values[$field_name], array());
-      }
-    }
-
-    // Fields which exist only on the right entity.
-    foreach ($right_values as $field_name => $values) {
-      $field_definition = $right_entity->getFieldDefinition($field_name);
-      $compare_settings = $this->pluginsConfig->get('field_types.' . $field_definition->getType());
-      $result[$field_name] = array(
-        '#name' => ($compare_settings['settings']['show_header'] == 1) ? $field_definition->getLabel() : '',
-        '#settings' => $compare_settings,
-      );
-      $result[$field_name] += $this->combineFields(array(), $right_values[$field_name]);
-    }
-
-    // Field rows. Recurse through all child elements.
-    foreach (Element::children($result) as $key) {
-      $result[$key]['#states'] = array();
-      // Ensure that the element follows the #states format.
-      if (isset($result[$key]['#left'])) {
-        // We need to trim spaces and new lines from the end of the string
-        // otherwise in some cases we have a blank not needed line.
-        $result[$key]['#states']['raw']['#left'] = trim($result[$key]['#left']);
-        unset($result[$key]['#left']);
-      }
-      if (isset($result[$key]['#right'])) {
-        $result[$key]['#states']['raw']['#right'] = trim($result[$key]['#right']);
-        unset($result[$key]['#right']);
-      }
-      $field_settings = $result[$key]['#settings'];
-
-      if (!empty($field_settings['settings']['markdown'])) {
-        $result[$key]['#states']['raw_plain']['#left'] = $this->applyMarkdown($field_settings['settings']['markdown'], $result[$key]['#states']['raw']['#left']);
-        $result[$key]['#states']['raw_plain']['#right'] = $this->applyMarkdown($field_settings['settings']['markdown'], $result[$key]['#states']['raw']['#right']);
-      }
-      // In case the settings are not loaded correctly use drupal_html_to_text
-      // to avoid any possible notices when a user clicks on markdown.
-      else {
-        $result[$key]['#states']['raw_plain']['#left'] = $this->applyMarkdown('drupal_html_to_text', $result[$key]['#states']['raw']['#left']);
-        $result[$key]['#states']['raw_plain']['#right'] = $this->applyMarkdown('drupal_html_to_text', $result[$key]['#states']['raw']['#right']);
-      }
-    }
-
-    // Process the array (split the strings into single line strings)
-    // and get line counts per field.
-    array_walk($result, array($this, 'processStateLine'));
-
-    return $result;
   }
 
 }
