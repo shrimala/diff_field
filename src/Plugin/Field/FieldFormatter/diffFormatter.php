@@ -96,7 +96,7 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
   public function viewElements(FieldItemListInterface $items, $langcode = NULL) {
     $elements = array();
     //=======================This part have to change============================================ 
-    foreach ($items as $delta => $item) {
+   foreach ($items as $delta => $item) {
       if ($item->before_rid == 1) {
         // If we are using a 1-sided die (occasionally sees use), just write "1"
         // instead of "1d1" which looks silly.
@@ -106,19 +106,19 @@ class diffFormatter extends FormatterBase  implements ContainerFactoryPluginInte
         $markup = $item->before_rid . 'd' . $item->after_rid;
       }
       $node = entity_revision_load('node',$item->before_rid);
-      $markup = $this->compareNodeRevisions($node, $item->before_rid, $item->after_rid, 'raw');
+      $markups = $this->compareNodeRevisions($node, $item->before_rid, $item->after_rid, 'raw');    
       //$markup = $this->entityComparison->compareRevisions($item->before_rid, $item->after_rid);
       //$markup = $this->entityComparison->test(50);
       //$markup = $this->currentUser->id();
       $elements[$delta] = array(
         '#type' => 'markup',
-        '#markup' => $markup,
+        '#markup' => $markups,
       );
     }
     //=============================================================================
     return $elements;
   }
-public function compareNodeRevisions(NodeInterface $node, $left_vid, $right_vid, $filter) {
+  public function compareNodeRevisions(NodeInterface $node, $left_vid, $right_vid, $filter) {
     $diff_rows = array();
     $build = array(
       '#title' => $this->t('Revisions for %title', array('%title' => $node->label())),
@@ -137,7 +137,6 @@ public function compareNodeRevisions(NodeInterface $node, $left_vid, $right_vid,
     $diff_rows[] = $this->buildRevisionsNavigation($node->id(), $vids, $left_vid, $right_vid);
     $diff_rows[] = $this->buildMarkdownNavigation($node->id(), $left_vid, $right_vid, $filter);
     $diff_header = $this->buildTableHeader($left_revision, $right_revision);
-
     // Perform comparison only if both node revisions loaded successfully.
     if ($left_revision != FALSE && $right_revision != FALSE) {
       $fields = $this->entityComparison->compareRevisions($left_revision, $right_revision);
@@ -159,29 +158,49 @@ public function compareNodeRevisions(NodeInterface $node, $left_vid, $right_vid,
       }
       // Build the diff rows for each field and append the field rows
       // to the table rows.
+      $i=0;
+      $t='<table>';
       foreach ($fields as $field) {
         $field_label_row = '';
         if (!empty($field['#name'])) {
-          $field_label_row = array(
+			 $field_label_row = array(
             'data' => $this->t('Changes to %name', array('%name' => $field['#name'])),
             'colspan' => 4,
             'class' => array('field-name'),
           );
+          
         }
         $field_diff_rows = $this->entityComparison->getRows(
           $field['#states'][$filter]['#left'],
           $field['#states'][$filter]['#right']
         );
-
         // Add the field label to the table only if there are changes to that field.
         if (!empty($field_diff_rows) && !empty($field_label_row)) {
-          $diff_rows[] = array($field_label_row);
+	        $xyz="<td colspan=4 >".$field_label_row['data']."</td>";
+          $t=$t."<tr>".$xyz."</tr>";
+          $i=0;
         }
-
+        $array_count=count($field_diff_rows);
         // Add field diff rows to the table rows.
-        $diff_rows = array_merge($diff_rows, $field_diff_rows);
+        if(!empty($field_diff_rows[$i][1]['data']['#markup']) || !empty($field_diff_rows[$i][3]['data']['#markup'])) {
+          if ($array_count<=1) {
+            $xyz="<tr><td>".$field_diff_rows[$i][0]['data']."</td><td>" .$field_diff_rows[$i][1]['data']['#markup']."</td>";
+            $xyz=$xyz ."<td>". $field_diff_rows[$i][2]['data']."</td><td>".$field_diff_rows[$i][3]['data']['#markup']."</td></tr>";
+            $t=$t.$xyz;
+            $i=$i+1;
+          }
+          elseif ($array_count>1) {
+            for($i=0;$i<$array_count;$i++) {
+              $xyz="<tr><td>".$field_diff_rows[$i][0]['data']."</td><td>" .$field_diff_rows[$i][1]['data']['#markup']."</td>";
+              $xyz=$xyz ."<td>". $field_diff_rows[$i][2]['data']."</td><td>".$field_diff_rows[$i][3]['data']['#markup']."</td></tr>";
+              $t=$t.$xyz;
+            }
+          }
+        }
       }
-
+      $t=$t."</table>";
+      return $t;
+      //=====================Checking require =========================
       // Add the CSS for the diff.
       $build['#attached']['library'][] = 'diff/diff.general';
       $theme = $this->entityComparison->config->get('general_settings.theme');
@@ -219,8 +238,8 @@ public function compareNodeRevisions(NodeInterface $node, $left_vid, $right_vid,
         '#title' => $this->t('Back to Revision Overview'),
         '#url' => Url::fromRoute('entity.node.version_history', ['node' => $node->id()]),
       );
-
-      return $build;
+      
+      return $field_diff_rows;
     }
     else {
       // @todo When task 'Convert drupal_set_message() to a service' (2278383)
